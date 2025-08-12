@@ -1,5 +1,5 @@
 //! Functions for adding prerequisite constraints.
-use crate::model_context::{Course, ModelBuilderContext};
+use super::model_context::{Course, ModelBuilderContext};
 use crate::prereqs::CourseReq;
 use crate::schedule::CourseCode;
 use cp_sat::builder::LinearExpr;

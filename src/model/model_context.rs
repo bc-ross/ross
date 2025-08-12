@@ -173,10 +173,10 @@ impl<'a> ModelBuilderContext<'a> {
 pub fn build_model_pipeline<'a>(
     ctx: &mut ModelBuilderContext<'a>,
 ) -> (CpModelBuilder, Vec<Vec<BoolVar>>, Vec<(Course<'a>, i64)>) {
-    crate::model_courses::add_courses(ctx);
-    crate::model_prereqs::add_prereq_constraints(ctx);
-    crate::model_geneds::add_gened_constraints(ctx);
-    crate::model_semester::add_semester_constraints(ctx);
+    super::model_courses::add_courses(ctx);
+    super::model_prereqs::add_prereq_constraints(ctx);
+    super::model_geneds::add_gened_constraints(ctx);
+    super::model_semester::add_semester_constraints(ctx);
     // Build flat_courses as (Course, credits)
     let flat_courses = ctx.courses.iter().map(|c| (c.clone(), c.credits)).collect();
     (

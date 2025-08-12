@@ -1,5 +1,5 @@
 //! Functions for adding course variables and required/optional constraints.
-use crate::model_context::{Course, ModelBuilderContext};
+use super::model_context::{Course, ModelBuilderContext};
 
 pub fn add_courses<'a>(ctx: &mut ModelBuilderContext<'a>) {
     let mut vars = Vec::new();

@@ -219,25 +219,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "coin_cbc"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d602045cd2e7ad02608a71492af94357f493a6f3c934ce854c03bf10fddc5780"
-dependencies = [
- "coin_cbc_sys",
- "lazy_static",
-]
-
-[[package]]
-name = "coin_cbc_sys"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "085619f8bdc38e24e25c6336ecc3f2e6c0543d67566dff6daef0e32f7ac20f76"
-dependencies = [
- "pkg-config",
-]
-
-[[package]]
 name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -246,9 +227,11 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "cp_sat"
 version = "0.3.3"
+source = "git+https://github.com/bc-ross/cp_sat.git?rev=2ba15818232d73fb5169fc806f57b7c96aed8bcb#2ba15818232d73fb5169fc806f57b7c96aed8bcb"
 dependencies = [
  "bytes",
  "cc",
+ "glob",
  "libc",
  "prost",
  "prost-build",
@@ -433,14 +416,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "good_lp"
-version = "1.14.0"
+name = "glob"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d976304a59dd741fa234623e96473cf399e10f3f91f0487215fc561f6131d362"
-dependencies = [
- "coin_cbc",
- "fnv",
-]
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "hashbrown"
@@ -567,12 +546,6 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "0.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
-
-[[package]]
-name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c"
@@ -592,12 +565,6 @@ name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
-
-[[package]]
-name = "leb128"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "884e2677b40cc8c339eaefcb701c32ef1fd2493d71118dc0ca4b6a736c93bd67"
 
 [[package]]
 name = "libc"
@@ -698,15 +665,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
 
 [[package]]
-name = "ordered-float"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "parking_lot"
 version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -727,26 +685,6 @@ dependencies = [
  "redox_syscall",
  "smallvec",
  "windows-targets 0.52.6",
-]
-
-[[package]]
-name = "partial_ref"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f728bc9b1479656e40cba507034904a8c44027c0efdbbaf6a4bdc5f2d3a910c"
-dependencies = [
- "partial_ref_derive",
-]
-
-[[package]]
-name = "partial_ref_derive"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "300e1d2cb5b898b5a5342e994e0d0c367dbfe69cbf717cd307045ec9fb057581"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
 ]
 
 [[package]]
@@ -802,12 +740,6 @@ dependencies = [
  "fixedbitset",
  "indexmap 1.9.3",
 ]
-
-[[package]]
-name = "pkg-config"
-version = "0.3.32"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "proc-macro-error-attr2"
@@ -960,14 +892,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cp_sat",
- "good_lp",
  "lazy_static",
  "rust_xlsxwriter",
  "savefile",
  "savefile-derive",
  "serde",
  "umya-spreadsheet",
- "varisat",
 ]
 
 [[package]]
@@ -978,12 +908,6 @@ checksum = "2a34eb37ee39e82b74f8a56cf0fe425586cee6e721839f14469d2648352651db"
 dependencies = [
  "zip 4.3.0",
 ]
-
-[[package]]
-name = "rustc-hash"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc_version"
@@ -1104,7 +1028,7 @@ version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
- "itoa 1.0.15",
+ "itoa",
  "memchr",
  "ryu",
  "serde",
@@ -1165,18 +1089,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
-]
-
-[[package]]
-name = "synstructure"
-version = "0.12.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f36bdaa60a83aca3921b5259d5400cbf5e90fc51931376a9bd4a0eb79aa7210f"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
- "unicode-xid",
 ]
 
 [[package]]
@@ -1298,12 +1210,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
 
 [[package]]
-name = "unicode-xid"
-version = "0.2.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
-
-[[package]]
 name = "uuid"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1312,93 +1218,6 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
 ]
-
-[[package]]
-name = "varisat"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebe609851d1e9196674ac295f656bd8601200a1077343d22b345013497807caf"
-dependencies = [
- "anyhow",
- "itoa 0.4.8",
- "leb128",
- "log",
- "ordered-float",
- "partial_ref",
- "rustc-hash",
- "serde",
- "thiserror 1.0.69",
- "varisat-checker",
- "varisat-dimacs",
- "varisat-formula",
- "varisat-internal-macros",
- "varisat-internal-proof",
- "vec_mut_scan",
-]
-
-[[package]]
-name = "varisat-checker"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135c977c5913ed6e98f6b81b8e4d322211303b7d40dae773caef7ad1de6c763b"
-dependencies = [
- "anyhow",
- "log",
- "partial_ref",
- "rustc-hash",
- "smallvec",
- "thiserror 1.0.69",
- "varisat-dimacs",
- "varisat-formula",
- "varisat-internal-proof",
-]
-
-[[package]]
-name = "varisat-dimacs"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d1dee4e21be1f04c0a939f7ae710cced47233a578de08a1b3c7d50848402636"
-dependencies = [
- "anyhow",
- "itoa 0.4.8",
- "thiserror 1.0.69",
- "varisat-formula",
-]
-
-[[package]]
-name = "varisat-formula"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "395c5543b9bfd9076d6d3af49d6c34a4b91b0b355998c0a5ec6ed7265d364520"
-
-[[package]]
-name = "varisat-internal-macros"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "602ece773543d066aa7848455486c6c0422a3f214da7a2b899100f3c4f12408d"
-dependencies = [
- "proc-macro2",
- "quote",
- "regex",
- "syn 1.0.109",
- "synstructure",
-]
-
-[[package]]
-name = "varisat-internal-proof"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6163bb7bc9018af077b76d64f976803d141c36a27d640f1437dddc4fd527d207"
-dependencies = [
- "anyhow",
- "varisat-formula",
-]
-
-[[package]]
-name = "vec_mut_scan"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68ed610a8d5e63d9c0e31300e8fdb55104c5f21e422743a9dc74848fa8317fd2"
 
 [[package]]
 name = "version_check"

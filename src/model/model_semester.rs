@@ -1,5 +1,5 @@
 /// Functions for adding generic semester constraints (e.g., max credits).
-use crate::model_context::ModelBuilderContext;
+use super::model_context::ModelBuilderContext;
 
 pub fn add_semester_constraints<'a>(ctx: &mut ModelBuilderContext<'a>) {
     // For each semester, sum the credits of all courses scheduled and add a constraint

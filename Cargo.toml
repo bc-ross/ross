@@ -18,6 +18,4 @@ savefile-derive = "0.18.7"
 umya-spreadsheet = "2.3.1"
 rust_xlsxwriter = "0.89.1"
 lazy_static = "1.5.0"
-varisat = "0.2.2"
-# Linear programming solver for optimization
-good_lp = "1.7"
+cp_sat = { git = "https://github.com/bc-ross/cp_sat.git", rev = "2ba15818232d73fb5169fc806f57b7c96aed8bcb" }

@@ -4,8 +4,7 @@ use std::path::Path;
 mod geneds;
 mod load_catalogs;
 mod prereqs;
-mod prereqs_cp;
-mod prereqs_sat;
+mod model;
 mod read_excel_file;
 mod schedule;
 mod version;
@@ -17,6 +16,7 @@ pub use version::{SAVEFILE_VERSION, VERSION};
 use write_excel_file::save_schedule;
 
 pub static TEMPLATE_PNG: &[u8] = include_bytes!("../assets/template.png");
+pub const MAX_CREDITS_PER_SEMESTER: i64 = 18;
 
 fn main() -> Result<()> {
     // Test the full real schedule generation with strategic Foundation selection
