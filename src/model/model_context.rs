@@ -22,15 +22,31 @@ pub struct ModelBuilderContext<'a> {
     pub min_credits: Option<i64>,
     pub geneds: Option<&'a [crate::geneds::GenEd]>,
     pub catalog: Option<&'a Catalog>,
+    // Diagnostic toggles for constraint groups
+    pub enable_prereqs: bool,
+    pub enable_geneds: bool,
+    pub enable_semester_limits: bool,
 }
 
 impl<'a> ModelBuilderContext<'a> {
     /// Create a new ModelBuilderContext from a schedule and max credits per semester.
     pub fn new(sched: &'a Schedule, max_credits_per_semester: i64) -> Self {
-        // Add all courses in the student's plan, their prerequisites, and all GenEd-eligible courses (as options)
+        Self::new_with_toggles(sched, max_credits_per_semester, true, true, true)
+    }
+
+    pub fn new_with_toggles(
+        sched: &'a Schedule,
+        max_credits_per_semester: i64,
+        enable_prereqs: bool,
+        enable_geneds: bool,
+        enable_semester_limits: bool,
+    ) -> Self {
+        // --- Patch: Mark as required if in plan OR required by any Foundation GenEd ---
+        use crate::geneds::{GenEd, GenEdReq};
         let mut all_codes = std::collections::HashSet::new();
-        let mut queue = std::collections::VecDeque::new();
+        let mut required_gened_codes = std::collections::HashSet::new();
         // 1. Add planned courses and their prereqs
+        let mut queue = std::collections::VecDeque::new();
         for sem in &sched.courses {
             for code in sem {
                 all_codes.insert(code.clone());
@@ -65,7 +81,6 @@ impl<'a> ModelBuilderContext<'a> {
         }
         // 2. Add all GenEd-eligible courses (so the solver can choose among them)
         for gened in &sched.catalog.geneds {
-            use crate::geneds::{GenEd, GenEdReq};
             let reqs: Vec<&GenEdReq> = match gened {
                 GenEd::Core { req, .. } => vec![req],
                 GenEd::Foundation { req, .. } => vec![req],
@@ -84,6 +99,25 @@ impl<'a> ModelBuilderContext<'a> {
                         for opt in opts {
                             for code in opt {
                                 all_codes.insert(code.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            // --- Patch: collect required Foundation GenEd courses ---
+            if let GenEd::Foundation { req, .. } = gened {
+                match req {
+                    GenEdReq::Set(codes)
+                    | GenEdReq::Courses { courses: codes, .. }
+                    | GenEdReq::Credits { courses: codes, .. } => {
+                        for code in codes {
+                            required_gened_codes.insert(code.clone());
+                        }
+                    }
+                    GenEdReq::SetOpts(opts) => {
+                        for opt in opts {
+                            for code in opt {
+                                required_gened_codes.insert(code.clone());
                             }
                         }
                     }
@@ -110,8 +144,9 @@ impl<'a> ModelBuilderContext<'a> {
             };
             total_credits += credits;
             println!("  {} ({} credits)", code, credits);
-            // Mark as required only if in student's plan
-            let required = sched.courses.iter().flatten().any(|c| c == code);
+            // Mark as required if in student's plan OR required by any Foundation GenEd
+            let required = sched.courses.iter().flatten().any(|c| c == code)
+                || required_gened_codes.contains(code);
             courses.push(Course {
                 code: code.clone(),
                 credits,
@@ -145,6 +180,9 @@ impl<'a> ModelBuilderContext<'a> {
             min_credits: None,
             geneds: Some(&sched.catalog.geneds),
             catalog: Some(&sched.catalog),
+            enable_prereqs,
+            enable_geneds,
+            enable_semester_limits,
         }
     }
 
@@ -174,9 +212,15 @@ pub fn build_model_pipeline<'a>(
     ctx: &mut ModelBuilderContext<'a>,
 ) -> (CpModelBuilder, Vec<Vec<BoolVar>>, Vec<(Course<'a>, i64)>) {
     super::model_courses::add_courses(ctx);
-    super::model_prereqs::add_prereq_constraints(ctx);
-    super::model_geneds::add_gened_constraints(ctx);
-    super::model_semester::add_semester_constraints(ctx);
+    if ctx.enable_prereqs {
+        super::model_prereqs::add_prereq_constraints(ctx);
+    }
+    if ctx.enable_geneds {
+        super::model_geneds::add_gened_constraints(ctx);
+    }
+    if ctx.enable_semester_limits {
+        super::model_semester::add_semester_constraints(ctx);
+    }
     // Build flat_courses as (Course, credits)
     let flat_courses = ctx.courses.iter().map(|c| (c.clone(), c.credits)).collect();
     (
