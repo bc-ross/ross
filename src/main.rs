@@ -31,12 +31,36 @@ fn main() -> Result<()> {
             .programs
             .iter()
             .map(|x| x.name.as_str())
+            .take(1)
             .collect(),
         CATALOGS
             .first()
             .ok_or(anyhow!("no catalogs found"))?
             .clone(),
     )?;
+
+    // Print the updated schedule from sched.courses
+    println!("Final schedule (two-stage, balanced):");
+    let mut sched_credits = 0;
+    for (s, semester) in sched.courses.iter().enumerate() {
+        println!("Semester {}", s + 1);
+        let mut sem_credits = 0;
+        for code in semester {
+            // Look up credits from catalog
+            let credits = sched.catalog.courses.get(code).and_then(|(_, cr, _)| *cr).unwrap_or(0);
+            println!("  {} ({} credits)", code, credits);
+            sem_credits += credits;
+        }
+        println!("  Credits: {}", sem_credits);
+        sched_credits += sem_credits;
+    }
+    println!("Total credits: {}", sched_credits);
+    match crate::geneds::are_geneds_satisfied(&sched) {
+        Ok(true) => println!("All GenEds satisfied!"),
+        Ok(false) => println!("GenEd requirements NOT satisfied!"),
+        Err(e) => println!("GenEd check error: {}", e),
+    }
+    
     save_schedule(&Path::new(FNAME).to_path_buf(), &sched)?;
 
     println!(
