@@ -6,37 +6,107 @@ use savefile::save_to_mem;
 use std::path::PathBuf;
 
 fn pretty_print_sched_to_sheet(sched: &Schedule, sheet: &mut Worksheet) -> Result<()> {
-    let semesters = sched.courses.len();
-    let format = Format::new().set_align(FormatAlign::Center);
+    let semesters = sched.courses.len() + 1;
+    let mut last_row = 0;
+    let mut sem_sums = vec![0; semesters];
 
-    for col_idx in 0..semesters {
+    let total_format = Format::new().set_italic();
+    let center_format = Format::new().set_align(FormatAlign::Center);
+
+    sheet.merge_range(0, 0, 0, 1, "Incoming", &center_format)?;
+    for col_idx in 1..semesters {
         sheet.merge_range(
             0,
             (col_idx * 2) as u16,
             0,
             ((col_idx * 2) + 1) as u16,
-            &format!("Semester {}", col_idx + 1),
-            &format,
+            &format!("Semester {col_idx}"),
+            &center_format,
         )?;
+    }
+
+    for (row_idx, val) in sched.incoming.iter().enumerate() {
+        sheet.write_string((row_idx + 1) as u32, 0, val.to_string())?;
+        sheet.write_number_with_format(
+            (row_idx + 1) as u32,
+            1,
+            sched
+                .catalog
+                .courses
+                .get(val)
+                .map(|(_, x, _)| x.unwrap_or(0))
+                .ok_or(anyhow::anyhow!("Course lookup not found: {}", val))?,
+            &center_format,
+        )?;
+
+        sem_sums[0] += sched
+            .catalog
+            .courses
+            .get(val)
+            .and_then(|(_, x, _)| *x)
+            .unwrap_or(0);
+        last_row = last_row.max(row_idx);
     }
 
     for (col_idx, field) in sched.courses.iter().enumerate() {
         for (row_idx, val) in field.iter().enumerate() {
-            sheet.write_string((row_idx + 1) as u32, (col_idx * 2) as u16, val.to_string())?;
             sheet.write_string(
                 (row_idx + 1) as u32,
-                ((col_idx * 2) + 1) as u16,
+                ((col_idx + 1) * 2) as u16,
+                val.to_string(),
+            )?;
+            sheet.write_number_with_format(
+                (row_idx + 1) as u32,
+                ((col_idx + 1) * 2 + 1) as u16,
                 sched
                     .catalog
                     .courses
-                    .get(&val)
-                    .map(|(_, x, _)| x.map(|credits| credits.to_string()).unwrap_or("cr".into()))
+                    .get(val)
+                    .map(|(_, x, _)| x.unwrap_or(0))
                     .ok_or(anyhow::anyhow!("Course lookup not found: {}", val))?,
+                &center_format,
             )?;
 
-            // TODO: How to add credit??
+            sem_sums[col_idx] += sched
+                .catalog
+                .courses
+                .get(val)
+                .and_then(|(_, x, _)| *x)
+                .unwrap_or(0);
+            last_row = last_row.max(row_idx);
         }
     }
+
+    for (col_idx, sum) in sem_sums.iter().enumerate() {
+        sheet.write_string_with_format(
+            (last_row + 2) as u32,
+            (col_idx * 2) as u16,
+            "Total",
+            &total_format,
+        )?;
+        sheet
+            .write_formula_with_format(
+                (last_row + 2) as u32,
+                (col_idx * 2 + 1) as u16,
+                format!(
+                    "=SUM({}:{})",
+                    rust_xlsxwriter::utility::row_col_to_cell(1, (col_idx * 2 + 1) as u16),
+                    rust_xlsxwriter::utility::row_col_to_cell(
+                        (last_row + 1) as u32,
+                        (col_idx * 2 + 1) as u16
+                    )
+                )
+                .as_str(),
+                &center_format,
+            )?
+            .set_formula_result(
+                (last_row + 2) as u32,
+                (col_idx * 2 + 1) as u16,
+                format!("{sum}"),
+            );
+        sheet.set_column_width((col_idx * 2 + 1) as u16, 2.5)?;
+    }
+
     sheet.autofit();
 
     Ok(())
@@ -53,48 +123,17 @@ fn embed_schedule_in_sheet(sheet: &mut Worksheet, sched: &Schedule) -> Result<()
 }
 
 pub fn save_schedule(fname: &PathBuf, sched: &Schedule) -> Result<()> {
-    // let pad_col = Column::full_null(
-    //     "PadColumn".into(),
-    //     sched.programs.len() - 1,
-    //     &DataType::String,
-    // );R
-    // let mut cat_col = Column::new(
-    //     "Catalog".into(),
-    //     vec![format!(
-    //         "{}-{}",
-    //         sched.catalog.low_year,
-    //         sched.catalog.low_year + 1
-    //     )],
-    // );
-    // let mut sched_col = Column::new("Schedulebot".into(), vec![VERSION]);
-    // cat_col.append(&pad_col)?;
-    // sched_col.append(&pad_col)?;
-
-    // let meta_df = DataFrame::new(vec![
-    //     Column::new("Programs".into(), &sched.programs),
-    //     cat_col,
-    //     sched_col,
-    // ])?;
-
     let mut workbook = Workbook::new();
 
     let schedule_sheet = workbook.add_worksheet().set_name("Schedule")?;
-    pretty_print_sched_to_sheet(&sched, schedule_sheet)?;
+    pretty_print_sched_to_sheet(sched, schedule_sheet)?;
     schedule_sheet.protect();
 
-    let test_sheet = workbook.add_worksheet().set_name("Internals")?;
-    embed_schedule_in_sheet(test_sheet, sched)?;
-    test_sheet.protect();
+    let internal_sheet = workbook.add_worksheet().set_name("Internals")?;
+    embed_schedule_in_sheet(internal_sheet, sched)?;
+    internal_sheet.protect();
     #[cfg(not(debug_assertions))]
-    test_sheet.set_hidden(true);
-
-    // for (name, df) in &sched.catalog.programs {
-    //     let sheet = workbook.add_worksheet().set_name(trim_titles(name))?;
-    //     write_df_to_sheet(df, sheet)?;
-    //     sheet.protect();
-    //     #[cfg(not(debug_assertions))]
-    //     sheet.set_hidden(true);
-    // }
+    internal_sheet.set_hidden(true);
 
     workbook.save(fname)?;
     Ok(())

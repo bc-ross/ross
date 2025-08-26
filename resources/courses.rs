@@ -1,9 +1,9 @@
 use crate::{
-    CC,
     schedule::{
         CourseCode,
         CourseTermOffering::{self, *},
     },
+    CC,
 };
 use std::collections::HashMap;
 
@@ -292,12 +292,36 @@ pub fn courses() -> HashMap<CourseCode, (String, Option<u32>, CourseTermOffering
             ("Biochemistry II Lab".into(), Some(1), Spring),
         ),
         (
+            CC!("CHEM", 3650),
+            ("Polymer Chemistry".into(), Some(3), Discretion),
+        ),
+        (
             CC!("CHEM", 3800),
             ("Physical Chemistry I".into(), Some(3), Spring),
         ),
         (
             CC!("CHEM", 3801),
             ("Physical Chemistry I Lab".into(), Some(1), Spring),
+        ),
+        (
+            CC!("CHEM", 3980),
+            ("Special Topics".into(), Some(3), Discretion),
+        ),
+        (
+            CC!("CHEM", 4200),
+            ("Physical Chemistry II".into(), Some(3), Fall),
+        ),
+        (
+            CC!("CHEM", 4350),
+            ("Advanced Organic Chemistry I".into(), Some(3), Discretion),
+        ),
+        (
+            CC!("CHEM", 4450),
+            ("Topics in Biochemistry".into(), Some(3), Fall),
+        ),
+        (
+            CC!("CHEM", 4650),
+            ("Organometallic Chemistry".into(), Some(3), Discretion),
         ),
         (CC!("CHEM", 4801), ("Research I".into(), Some(1), Both)),
         (CC!("CHEM", 4811), ("Research II".into(), Some(1), Both)),
@@ -316,6 +340,10 @@ pub fn courses() -> HashMap<CourseCode, (String, Option<u32>, CourseTermOffering
         (
             CC!("CHEM", 4903),
             ("Chem & Biochem Colloquium 4".into(), Some(1), Both),
+        ),
+        (
+            CC!("CHEM", 4980),
+            ("Special Topics".into(), Some(4), Discretion),
         ),
         (
             CC!("CHEM", "COMP"),

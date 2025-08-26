@@ -1,8 +1,8 @@
 use crate::{
     CC,
     geneds::{
+        ElectiveReq::*,
         GenEd::{self, *},
-        GenEdReq::*,
     },
     schedule::CourseCode,
 };

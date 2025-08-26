@@ -7,10 +7,6 @@ mod prereqs;
 mod semester;
 mod two_stage_schedule;
 
-use context::{Course, ModelBuilderContext, build_model_pipeline};
-use courses::*;
-use geneds::*;
-use prereqs::*;
-use semester::*;
+use context::{ModelBuilderContext, build_model_pipeline};
 
 pub use two_stage_schedule::two_stage_lex_schedule;

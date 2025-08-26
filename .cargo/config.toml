@@ -1,0 +1,2 @@
+[alias]
+do = "test ross -- --nocapture"

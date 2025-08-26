@@ -1,7 +1,9 @@
 //! Legacy model-building and schedule-building logic moved from main.rs
-use crate::schedule::{CourseCode, Schedule};
-use crate::prereqs;
 use super::Course;
+use crate::model::Course;
+use crate::prereqs;
+use crate::prereqs;
+use crate::schedule::{CourseCode, Schedule};
 
 pub fn build_model_from_schedule(
     sched: &Schedule,
@@ -49,22 +51,23 @@ pub fn build_model_from_schedule(
     }
     let mut gened_codes = std::collections::HashSet::new();
     for gened in &sched.catalog.geneds {
-        use crate::geneds::GenEdReq;
+        use crate::geneds::ElectiveReq;
         let req = match gened {
             crate::geneds::GenEd::Core { req, .. } => req,
             crate::geneds::GenEd::Foundation { req, .. } => req,
             crate::geneds::GenEd::SkillAndPerspective { req, .. } => req,
         };
         match req {
-            crate::geneds::GenEdReq::Set(codes) => {
+            crate::geneds::ElectiveReq::Set(codes) => {
                 gened_codes.extend(codes.iter().cloned());
             }
-            crate::geneds::GenEdReq::SetOpts(opts) => {
+            crate::geneds::ElectiveReq::SetOpts(opts) => {
                 for set in opts {
                     gened_codes.extend(set.iter().cloned());
                 }
             }
-            crate::geneds::GenEdReq::Courses { courses, .. } | crate::geneds::GenEdReq::Credits { courses, .. } => {
+            crate::geneds::ElectiveReq::Courses { courses, .. }
+            | crate::geneds::ElectiveReq::Credits { courses, .. } => {
                 gened_codes.extend(courses.iter().cloned());
             }
         }

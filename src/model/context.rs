@@ -4,33 +4,35 @@ use crate::schedule::{Catalog, CourseCode, Schedule};
 use cp_sat::builder::{BoolVar, CpModelBuilder, LinearExpr};
 
 #[derive(Clone)]
-pub struct Course<'a> {
+pub struct Course {
     pub code: CourseCode,
     pub credits: i64,
     pub required: bool,
-    pub geneds: Vec<&'a str>,
-    pub elective_group: Option<&'a str>,
     pub prereqs: CourseReq,
 }
 
 pub struct ModelBuilderContext<'a> {
     pub model: CpModelBuilder,
     pub vars: Vec<Vec<BoolVar>>,
-    pub courses: Vec<Course<'a>>,
+    pub courses: Vec<Course>,
     pub num_semesters: usize,
     pub max_credits_per_semester: i64,
     pub min_credits: Option<i64>,
-    pub geneds: Option<&'a [crate::geneds::GenEd]>,
     pub catalog: Option<&'a Catalog>,
+    pub incoming_codes: Vec<CourseCode>,
 }
 
 impl<'a> ModelBuilderContext<'a> {
     /// Create a new ModelBuilderContext from a schedule and max credits per semester.
     pub fn new(sched: &'a Schedule, max_credits_per_semester: i64) -> Self {
-        // Add all courses in the student's plan, their prerequisites, and all GenEd-eligible courses (as options)
+        // Add incoming courses as semester 0
         let mut all_codes = std::collections::HashSet::new();
         let mut queue = std::collections::VecDeque::new();
-        // 1. Add planned courses and their prereqs
+        // Add incoming courses first
+        for code in &sched.incoming {
+            all_codes.insert(code.clone());
+        }
+        // Add planned courses and their prereqs
         for sem in &sched.courses {
             for code in sem {
                 all_codes.insert(code.clone());
@@ -42,14 +44,13 @@ impl<'a> ModelBuilderContext<'a> {
                 fn collect_prereq_codes(
                     req: &CourseReq,
                     all_codes: &mut std::collections::HashSet<CourseCode>,
-                    catalog: &Catalog,
                     queue: &mut std::collections::VecDeque<CourseCode>,
                 ) {
                     use crate::prereqs::CourseReq::*;
                     match req {
                         And(reqs) | Or(reqs) => {
                             for r in reqs {
-                                collect_prereq_codes(r, all_codes, catalog, queue);
+                                collect_prereq_codes(r, all_codes, queue);
                             }
                         }
                         PreCourse(code) | CoCourse(code) => {
@@ -60,27 +61,27 @@ impl<'a> ModelBuilderContext<'a> {
                         _ => {}
                     }
                 }
-                collect_prereq_codes(req, &mut all_codes, &sched.catalog, &mut queue);
+                collect_prereq_codes(req, &mut all_codes, &mut queue);
             }
         }
-        // 2. Add all GenEd-eligible courses (so the solver can choose among them)
+        // Add GenEd-eligible courses
         for gened in &sched.catalog.geneds {
-            use crate::geneds::{GenEd, GenEdReq};
-            let reqs: Vec<&GenEdReq> = match gened {
+            use crate::geneds::{ElectiveReq, GenEd};
+            let reqs: Vec<&ElectiveReq> = match gened {
                 GenEd::Core { req, .. } => vec![req],
                 GenEd::Foundation { req, .. } => vec![req],
                 GenEd::SkillAndPerspective { req, .. } => vec![req],
             };
             for req in reqs {
                 match req {
-                    GenEdReq::Set(codes)
-                    | GenEdReq::Courses { courses: codes, .. }
-                    | GenEdReq::Credits { courses: codes, .. } => {
+                    ElectiveReq::Set(codes)
+                    | ElectiveReq::Courses { courses: codes, .. }
+                    | ElectiveReq::Credits { courses: codes, .. } => {
                         for code in codes {
                             all_codes.insert(code.clone());
                         }
                     }
-                    GenEdReq::SetOpts(opts) => {
+                    ElectiveReq::SetOpts(opts) => {
                         for opt in opts {
                             for code in opt {
                                 all_codes.insert(code.clone());
@@ -90,9 +91,35 @@ impl<'a> ModelBuilderContext<'a> {
                 }
             }
         }
+        // Collect program electives for the selected programs
+        let mut program_electives: Vec<&crate::schedule::Elective> = Vec::new();
+        for prog_name in &sched.programs {
+            if let Some(prog) = sched.catalog.programs.iter().find(|p| &p.name == prog_name) {
+                for elective in &prog.electives {
+                    program_electives.push(elective);
+                    // Also ensure elective courses are included in all_codes so they can be modelled
+                    use crate::geneds::ElectiveReq;
+                    match &elective.req {
+                        ElectiveReq::Set(codes)
+                        | ElectiveReq::Courses { courses: codes, .. }
+                        | ElectiveReq::Credits { courses: codes, .. } => {
+                            for code in codes {
+                                all_codes.insert(code.clone());
+                            }
+                        }
+                        ElectiveReq::SetOpts(opts) => {
+                            for opt in opts {
+                                for code in opt {
+                                    all_codes.insert(code.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         // Build Course structs for all codes, and print diagnostics
         let mut courses = Vec::new();
-        let mut total_credits = 0;
         for code in &all_codes {
             let (credits, prereqs) = match sched.catalog.courses.get(code) {
                 Some((_name, credits_opt, _offering)) => {
@@ -107,15 +134,15 @@ impl<'a> ModelBuilderContext<'a> {
                 }
                 None => (0, CourseReq::NotRequired),
             };
-            total_credits += credits;
-            // Mark as required only if in student's plan
-            let required = sched.courses.iter().flatten().any(|c| c == code);
+            let required = if sched.incoming.contains(code) {
+                true
+            } else {
+                sched.courses.iter().flatten().any(|c| c == code)
+            };
             courses.push(Course {
                 code: code.clone(),
                 credits,
                 required,
-                geneds: vec![],
-                elective_group: None,
                 prereqs,
             });
         }
@@ -124,11 +151,11 @@ impl<'a> ModelBuilderContext<'a> {
             model: CpModelBuilder::default(),
             vars: Vec::new(),
             courses,
-            num_semesters: sched.courses.len(),
+            num_semesters: sched.courses.len(), // already includes semester 0 after transformation
             max_credits_per_semester,
             min_credits: None,
-            geneds: Some(&sched.catalog.geneds),
             catalog: Some(&sched.catalog),
+            incoming_codes: sched.incoming.clone(),
         }
     }
 
@@ -140,12 +167,13 @@ impl<'a> ModelBuilderContext<'a> {
     /// Compute the total credits LinearExpr for the current context
     pub fn total_credits_expr(
         &self,
-        vars: &Vec<Vec<BoolVar>>,
-        flat_courses: &Vec<(Course, i64)>,
+        vars: &[Vec<BoolVar>],
+        flat_courses: &[(Course, i64)],
     ) -> LinearExpr {
         let mut obj_terms = Vec::new();
         for (i, (_course, credits)) in flat_courses.iter().enumerate() {
-            for s in 0..self.num_semesters {
+            // Skip semester 0 (incoming) when computing total scheduled credits
+            for s in 1..self.num_semesters {
                 obj_terms.push((*credits, vars[i][s]));
             }
         }
@@ -154,9 +182,9 @@ impl<'a> ModelBuilderContext<'a> {
 }
 
 /// Build the model pipeline: add variables, constraints, and return (model, vars, flat_courses)
-pub fn build_model_pipeline<'a>(
-    ctx: &mut ModelBuilderContext<'a>,
-) -> (CpModelBuilder, Vec<Vec<BoolVar>>, Vec<(Course<'a>, i64)>) {
+pub fn build_model_pipeline(
+    ctx: &mut ModelBuilderContext,
+) -> (CpModelBuilder, Vec<Vec<BoolVar>>, Vec<(Course, i64)>) {
     super::courses::add_courses(ctx);
     super::prereqs::add_prereq_constraints(ctx);
     super::geneds::add_gened_constraints(ctx);
@@ -164,7 +192,7 @@ pub fn build_model_pipeline<'a>(
     // Build flat_courses as (Course, credits)
     let flat_courses = ctx.courses.iter().map(|c| (c.clone(), c.credits)).collect();
     (
-        std::mem::replace(&mut ctx.model, CpModelBuilder::default()),
+        std::mem::take(&mut ctx.model),
         ctx.vars.clone(),
         flat_courses,
     )

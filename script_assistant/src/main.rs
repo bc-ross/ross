@@ -19,9 +19,6 @@ pub mod schedule;
 #[path = "../../src/prereqs.rs"]
 pub mod prereqs;
 
-#[path = "../../src/schedule_sorter.rs"]
-pub mod schedule_sorter;
-
 #[path = "../../src/geneds.rs"]
 pub mod geneds;
 
@@ -29,6 +26,13 @@ fn main() {
     let mut new_courses = HashSet::new();
     for program in programs::programs() {
         new_courses.extend(program.semesters.into_iter().flatten());
+        new_courses.extend(
+            program
+                .electives
+                .into_iter()
+                .map(|e| e.req.all_course_codes())
+                .flatten(),
+        );
     }
     for (course, prereq) in course_reqs::prereqs() {
         new_courses.insert(course);

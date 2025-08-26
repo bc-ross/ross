@@ -44,7 +44,8 @@ def main():
 #![allow(unused_imports)]
 
 use crate::CC;
-use crate::schedule::{CourseCode, Elective::*, Program};
+use crate::geneds::ElectiveReq::*;
+use crate::schedule::{CourseCode, Elective, Program};
 
 pub fn prog() -> Program {
     Program {

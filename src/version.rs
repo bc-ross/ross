@@ -30,11 +30,9 @@ const fn version_to_int(version: &str) -> u32 {
             if part_num == 3 {
                 break;
             }
-        } else {
-            if part_idx < part.len() {
-                part[part_idx] = b;
-                part_idx += 1;
-            }
+        } else if part_idx < part.len() {
+            part[part_idx] = b;
+            part_idx += 1;
         }
         i += 1;
     }

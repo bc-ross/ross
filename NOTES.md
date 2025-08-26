@@ -18,3 +18,5 @@
   - [ ] Add these constraints to `Natural World`:
     - [ ] "Must be taken in two different disciplines."
     - [ ] "including one lab"
+- [x] Add incoming (HS) courses
+- [ ] Add customizable test harness in `main.rs`

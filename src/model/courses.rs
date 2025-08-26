@@ -1,12 +1,12 @@
 //! Functions for adding course variables and required/optional constraints.
-use super::context::{Course, ModelBuilderContext};
+use super::context::ModelBuilderContext;
 
 pub fn add_courses<'a>(ctx: &mut ModelBuilderContext<'a>) {
     let mut vars = Vec::new();
     for i in 0..ctx.courses.len() {
         let mut sem_vars = Vec::new();
         for s in 0..ctx.num_semesters {
-            let v = ctx.model.new_bool_var_with_name(format!("c_{}_{}", i, s));
+            let v = ctx.model.new_bool_var_with_name(format!("c_{i}_{s}"));
             sem_vars.push(v);
         }
         vars.push(sem_vars);
@@ -42,8 +42,8 @@ pub fn add_courses<'a>(ctx: &mut ModelBuilderContext<'a>) {
             .map(|(_, _, off)| off);
         for s in 0..ctx.num_semesters {
             let allowed = match offering {
-                Some(crate::schedule::CourseTermOffering::Fall) => s % 2 == 0, // even semesters
-                Some(crate::schedule::CourseTermOffering::Spring) => s % 2 == 1, // odd semesters
+                Some(crate::schedule::CourseTermOffering::Fall) => s % 2 == 1, // odd semesters
+                Some(crate::schedule::CourseTermOffering::Spring) => s % 2 == 0, // even semesters
                 Some(crate::schedule::CourseTermOffering::Both) => true,
                 Some(crate::schedule::CourseTermOffering::Discretion) => true, // allowed, but may change in future
                 Some(crate::schedule::CourseTermOffering::Infrequently) => true, // allowed, but may change in future
@@ -54,6 +54,23 @@ pub fn add_courses<'a>(ctx: &mut ModelBuilderContext<'a>) {
                 // Forbid scheduling this course in this semester
                 ctx.model
                     .add_eq(ctx.vars[i][s], cp_sat::builder::LinearExpr::from(0));
+            }
+        }
+    }
+    // --- Incoming courses logic ---
+    // Get incoming codes from context (they are always required and only scheduled in semester 0)
+    let incoming_semester = 0;
+    for (i, c) in ctx.courses.iter().enumerate() {
+        let is_incoming = ctx.incoming_codes.contains(&c.code);
+        for s in 0..ctx.num_semesters {
+            if is_incoming {
+                if s == incoming_semester {
+                    ctx.model.add_eq(ctx.vars[i][s], 1); // Must be scheduled in semester 0
+                } else {
+                    ctx.model.add_eq(ctx.vars[i][s], 0); // Cannot be scheduled elsewhere
+                }
+            } else if s == incoming_semester {
+                ctx.model.add_eq(ctx.vars[i][s], 0); // Only incoming courses allowed in semester 0
             }
         }
     }

@@ -1,5 +1,5 @@
 //! Functions for adding prerequisite constraints.
-use super::context::{Course, ModelBuilderContext};
+use super::context::ModelBuilderContext;
 use crate::prereqs::CourseReq;
 use crate::schedule::CourseCode;
 use cp_sat::builder::LinearExpr;
@@ -27,6 +27,11 @@ fn add_prereq_for_course<'a>(
 ) {
     use crate::prereqs::CourseReq::*;
     let num_semesters = ctx.num_semesters;
+    // If the target course is an incoming course, skip prereq constraints entirely.
+    // Incoming courses are allowed in semester 0 and should not be blocked by prereqs.
+    if ctx.incoming_codes.contains(&ctx.courses[course_idx].code) {
+        return;
+    }
     match req {
         NotRequired => {}
         And(reqs) => {
@@ -43,26 +48,24 @@ fn add_prereq_for_course<'a>(
                     match r {
                         PreCourse(code) => {
                             if let Some(&pre_idx) = idx_map.get(code) {
-                                if s == 0 {
-                                } else {
-                                    let earlier_vars: Vec<_> =
-                                        ctx.vars[pre_idx][..s].iter().copied().collect();
-                                    if !earlier_vars.is_empty() {
-                                        let sum_earlier: LinearExpr =
-                                            earlier_vars.into_iter().collect();
-                                        ctx.model.add_linear_constraint(
-                                            sum_earlier - or_var,
-                                            [(0, i64::MAX)],
-                                        );
-                                        or_exprs.push(or_var);
-                                    }
+                                // Allow prereqs to be satisfied in semester 0 (incoming)
+                                let earlier_vars: Vec<_> =
+                                    ctx.vars[pre_idx][..s].to_vec();
+                                if !earlier_vars.is_empty() {
+                                    let sum_earlier: LinearExpr =
+                                        earlier_vars.into_iter().collect();
+                                    ctx.model.add_linear_constraint(
+                                        sum_earlier - or_var,
+                                        [(0, i64::MAX)],
+                                    );
+                                    or_exprs.push(or_var);
                                 }
                             }
                         }
                         CoCourse(code) => {
                             if let Some(&co_idx) = idx_map.get(code) {
                                 let upto_vars: Vec<_> =
-                                    ctx.vars[co_idx][..=s].iter().copied().collect();
+                                    ctx.vars[co_idx][..=s].to_vec();
                                 if !upto_vars.is_empty() {
                                     let sum_upto: LinearExpr = upto_vars.into_iter().collect();
                                     ctx.model
@@ -74,7 +77,7 @@ fn add_prereq_for_course<'a>(
                         And(_) | Or(_) => {
                             add_prereq_for_course(ctx, idx_map, course_idx, r);
                         }
-                        _ => unimplemented!("Only PreCourse, CoCourse, And, Or supported"),
+                        _ => eprintln!("Only PreCourse, CoCourse, And, Or supported, not {r:?}"),
                     }
                     or_exprs.push(or_var);
                 }
@@ -92,7 +95,7 @@ fn add_prereq_for_course<'a>(
                     if s == 0 {
                         ctx.model.add_eq(cur, 0);
                     } else {
-                        let earlier_vars: Vec<_> = ctx.vars[pre_idx][..s].iter().copied().collect();
+                        let earlier_vars: Vec<_> = ctx.vars[pre_idx][..s].to_vec();
                         if !earlier_vars.is_empty() {
                             let sum_earlier: LinearExpr = earlier_vars.into_iter().collect();
                             ctx.model
@@ -112,7 +115,7 @@ fn add_prereq_for_course<'a>(
             if let Some(&co_idx) = idx_map.get(code) {
                 for s in 0..num_semesters {
                     let cur = ctx.vars[course_idx][s];
-                    let upto_vars: Vec<_> = ctx.vars[co_idx][..=s].iter().copied().collect();
+                    let upto_vars: Vec<_> = ctx.vars[co_idx][..=s].to_vec();
                     if !upto_vars.is_empty() {
                         let sum_upto: LinearExpr = upto_vars.into_iter().collect();
                         ctx.model

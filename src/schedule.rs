@@ -6,7 +6,7 @@ use std::{
     fmt::{self, Display},
 };
 
-use crate::geneds::{GenEd, are_geneds_satisfied};
+use crate::geneds::{ElectiveReq, GenEd, are_geneds_satisfied};
 use crate::prereqs::CourseReq;
 
 #[derive(Savefile, Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
@@ -60,9 +60,9 @@ impl From<&str> for CourseCodeSuffix {
 impl Display for CourseCodeSuffix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CourseCodeSuffix::Number(num) => write!(f, "{}", num),
-            CourseCodeSuffix::Special(s) => write!(f, "{}", s),
-            CourseCodeSuffix::Unique(id) => write!(f, "{}", id),
+            CourseCodeSuffix::Number(num) => write!(f, "{num}"),
+            CourseCodeSuffix::Special(s) => write!(f, "{s}"),
+            CourseCodeSuffix::Unique(id) => write!(f, "{id}"),
         }
     }
 }
@@ -86,33 +86,30 @@ macro_rules! CC {
 
 impl Display for CourseCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}-{}", self.stem, self.code.to_string())
+        write!(f, "{}-{}", self.stem, self.code)
     }
 }
 
 impl std::fmt::Debug for CourseCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CC({}-{})", self.stem, self.code.to_string())
+        write!(f, "CC({}-{})", self.stem, self.code)
     }
 }
 
 pub type Semester = Vec<CourseCode>;
 
 #[derive(Savefile, Serialize, Deserialize, Debug, Clone)]
-pub enum Elective {
-    And(Vec<Elective>),
-    Or(Vec<Elective>),
-    Courses { num: usize, opts: Vec<CourseCode> },
-    Credits { num: usize, opts: Vec<CourseCode> },
-    Sequence(Vec<Vec<CourseCode>>),
+pub struct Elective {
+    pub name: String,
+    pub req: ElectiveReq,
 }
 
 #[derive(Savefile, Serialize, Deserialize, Debug, Clone)]
 pub struct Program {
-    pub(crate) name: String,
-    pub(crate) semesters: Vec<Semester>,
-    pub(crate) electives: Vec<Elective>,
-    pub(crate) assoc_stems: Vec<String>,
+    pub name: String,
+    pub semesters: Vec<Semester>,
+    pub electives: Vec<Elective>,
+    pub assoc_stems: Vec<String>,
 }
 
 #[derive(Savefile, Serialize, Deserialize, Debug, Clone)]
@@ -146,10 +143,15 @@ impl fmt::Display for Catalog {
 pub struct Schedule {
     pub courses: Vec<Semester>,
     pub programs: Vec<String>,
+    pub incoming: Semester,
     pub catalog: Catalog,
 }
 
-pub fn generate_schedule(programs: Vec<&str>, catalog: Catalog) -> Result<Schedule> {
+pub fn generate_schedule(
+    programs: Vec<&str>,
+    catalog: Catalog,
+    incoming: Option<Semester>,
+) -> Result<Schedule> {
     // (catalog: )
     let programs: Vec<&Program> = catalog
         .programs
@@ -171,6 +173,7 @@ pub fn generate_schedule(programs: Vec<&str>, catalog: Catalog) -> Result<Schedu
     let mut sched = Schedule {
         courses: combined_semesters,
         programs: programs.iter().map(|x| x.name.to_owned()).collect(),
+        incoming: incoming.unwrap_or_default(),
         catalog,
     };
     sched.reduce()?;
@@ -181,7 +184,7 @@ pub fn generate_schedule(programs: Vec<&str>, catalog: Catalog) -> Result<Schedu
 }
 
 impl Schedule {
-    pub fn reduce<'a>(&'a mut self) -> Result<&'a mut Self> {
+    pub fn reduce(&mut self) -> Result<&mut Self> {
         let mut all_codes: HashSet<CourseCode> = HashSet::new();
         self.courses.iter_mut().for_each(|sem| {
             sem.retain(|code| {

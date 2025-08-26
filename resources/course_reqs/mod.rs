@@ -9,8 +9,8 @@ mod stem_chem;
 
 pub fn prereqs() -> HashMap<CourseCode, CourseReq> {
     empty()
-        .chain(stem_astr::prereqs().into_iter())
-        .chain(stem_biol::prereqs().into_iter())
-        .chain(stem_chem::prereqs().into_iter())
+        .chain(stem_astr::prereqs())
+        .chain(stem_biol::prereqs())
+        .chain(stem_chem::prereqs())
         .collect()
 }
